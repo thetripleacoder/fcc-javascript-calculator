@@ -1,0 +1,30 @@
+button {
+  height: 100px;
+}
+
+.num-btns-container {
+  background: #aaa;
+  display: flex;
+  flex-wrap: wrap;
+  width: 75%;
+}
+.num-btns-container button {
+  width: 33.3333333333%;
+}
+.num-btns-container button#zero {
+  flex-grow: 1;
+}
+.num-btns-container button#decimal {
+  width: 33.3333333333%;
+}
+
+.result-btns-container {
+  width: 25%;
+}
+.result-btns-container button {
+  flex-grow: 1;
+}
+
+.operator-btns-container button {
+  width: 25%;
+}/*# sourceMappingURL=styles.css.map */
