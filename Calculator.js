@@ -1,3 +1,5 @@
+// React
+
 let numberBtns = [
   {
     id: 'seven',
@@ -105,7 +107,9 @@ class Calculator extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
+      display: 0,
       input: 0,
+
     };
     this.handleClick = this.handleClick.bind(this);
   }
@@ -113,40 +117,68 @@ class Calculator extends React.Component {
   handleClick(btn) {
     switch (btn.type) {
       case 'number':
-        this.setState((state) => ({
-          input:
-            state.result > 0
-              ? state.result.toString() + btn.value
-              : state.result + btn.value,
-        }));
+        this.setState((state) => {
+          let newInput =
+            (state.input > 0 && parseFloat(state.input))
+              ? state.input.toString() + btn.value
+              : state.input + btn.value;
+
+          return {
+            input: newInput,
+          };
+        });
         break;
       case 'operator':
+      
+
         switch (btn.id) {
           case 'add':
-            this.props.addAction();
+            this.props.addValue(this.state.input);
             break;
           case 'subtract':
-            this.props.subtractAction();
+            this.props.subtractValue(this.state.input);
             break;
           case 'divide':
-            this.props.divideAction();
+            this.props.divideValue(this.state.input);
             break;
           case 'multiply':
-            this.props.multiplyAction();
+            this.props.multiplyValue(this.state.input);
             break;
           case 'equals':
-            this.props.addAction();
+            this.setState({
+              input: this.props.result
+            })
+            break;
+          case 'clear':
+            this.props.clearValue(this.state.input);
+            this.setState({
+              display: 0,
+              input: 0
+            });
             break;
         }
+
+        if (!['clear', 'equals'].includes(btn.id)) {
+          this.setState((state) => ({
+            display:
+              state.display + state.input
+                ? state.display
+                  ? state.display + ' ' + btn.value + ' ' + state.input
+                  : state.input
+                : 0,
+              input: btn.value
+          }));
+        }
     }
-    console.log(this.state);
+    console.log(this.props);
   }
 
   render() {
     return (
       <div>
+        <div>{this.state.display}</div>
+        <div>{this.props.result}</div>
         <div id='display'>{this.state.input}</div>
-        <div id='display'>{this.props.result}</div>
         <div className='operator-btns-container d-flex'>
           {operatorBtns.map((btn) => {
             return (
@@ -189,3 +221,118 @@ class Calculator extends React.Component {
     );
   }
 }
+
+// Redux
+
+const ADD = 'Add'; // Define a constant for add action types
+const SUBTRACT = 'Subtract'; // Define a constant for subtract action types
+const DIVIDE = 'Divide'; // Define a constant for divide action types
+const MULTIPLY = 'Multiply'; // Define a constant for multiply action types
+const CLEAR = 'Clear'; // Define a constant for multiply action types
+
+let result = 0;
+
+const calculatorReducer = (state = result, action) => {
+  console.log(state);
+  let stateInput = parseFloat(action.value);
+  switch (action.type) {
+    case ADD:
+      return state + stateInput;
+    case SUBTRACT:
+      return state - stateInput;
+    case DIVIDE:
+      return state / stateInput;
+    case MULTIPLY:
+      return state * stateInput;
+    case CLEAR:
+      return action.value;
+    default:
+      return state;
+  }
+}; // Define the counter reducer which will add, subtract, multiply or divide the state based on the action it receives
+
+const addAction = (value) => {
+  return {
+    type: ADD,
+    value: value,
+  };
+}; // Define an action creator for adding
+
+const subtractAction = (value) => {
+  return {
+    type: SUBTRACT,
+    value: value,
+  };
+}; // Define an action creator for subtracting
+
+const divideAction = (value) => {
+  return {
+    type: DIVIDE,
+    value: value,
+  };
+}; // Define an action creator for dividing
+
+const multiplyAction = (value) => {
+  return {
+    type: MULTIPLY,
+    value: value,
+  };
+}; // Define an action creator for multiplying
+
+const clearAction = () => {
+  return {
+    type: CLEAR,
+    value: 0,
+  };
+}; // Define an action creator for clearing
+
+const store = Redux.createStore(calculatorReducer); // Define the Redux store here, passing in your reducers
+
+const mapStateToProps = (state) => {
+  return { result: state };
+};
+
+// React- Redux
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    addValue: (value) => {
+      dispatch(addAction(value));
+    },
+    subtractValue: (value) => {
+      dispatch(subtractAction(value));
+    },
+    divideValue: (value) => {
+      dispatch(divideAction(value));
+    },
+    multiplyValue: (value) => {
+      dispatch(multiplyAction(value));
+    },
+    clearValue: () => {
+      dispatch(clearAction());
+    },
+  };
+};
+
+const Provider = ReactRedux.Provider;
+const connect = ReactRedux.connect;
+
+// Define the Container component here:
+const Container = connect(mapStateToProps, mapDispatchToProps)(Calculator);
+
+class AppWrapper extends React.Component {
+  constructor(props) {
+    super(props);
+  }
+  render() {
+    console.log(document.getElementById('calculator'));
+    // Complete the return statement:
+    return (
+      <Provider store={store}>
+        <Container />
+      </Provider>
+    );
+  }
+}
+
+ReactDOM.render(<AppWrapper />, document.getElementById('calculator'));
