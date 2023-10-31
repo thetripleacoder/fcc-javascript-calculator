@@ -107,9 +107,8 @@ class Calculator extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      display: 0,
+      display: '',
       input: 0,
-
     };
     this.handleClick = this.handleClick.bind(this);
   }
@@ -118,67 +117,137 @@ class Calculator extends React.Component {
     switch (btn.type) {
       case 'number':
         this.setState((state) => {
+          let numRegex = /[0-9]+\.?[0-9]*$/;
+          let operatorRegex = /[\+\-\/\*]$/;
+          let newDisplay = '';
           let newInput =
-            (state.input > 0 && parseFloat(state.input))
-              ? state.input.toString() + btn.value
-              : state.input + btn.value;
+            this.handleDecimalInput(state.input, btn) || state.input;
 
-          return {
-            input: newInput,
-          };
+          if (operatorRegex.test(state.display)) {
+            return {
+              display: state.display + (btn.value ? btn.value : ''),
+              input: btn.value,
+            };
+          } else if (numRegex.test(state.display)) {
+            newDisplay = state.display.replace(numRegex, newInput);
+
+            return {
+              display: newDisplay,
+              input: newInput,
+            };
+          } else if (!state.display) {
+            return {
+              display: newInput,
+              input: newInput,
+            };
+          }
         });
         break;
       case 'operator':
-      
+        let newDisplay;
+        let recentOperatorsRegex = /[\+\-\/\*]*$/;
+        let hasEquals = this.state.display.includes('=');
+        this.setState((state) => {
+          let recentOperators = state.display
+            .match(recentOperatorsRegex)
+            .join('');
 
-        switch (btn.id) {
-          case 'add':
-            this.props.addValue(this.state.input);
-            break;
-          case 'subtract':
-            this.props.subtractValue(this.state.input);
-            break;
-          case 'divide':
-            this.props.divideValue(this.state.input);
-            break;
-          case 'multiply':
-            this.props.multiplyValue(this.state.input);
-            break;
-          case 'equals':
-            this.setState({
-              input: this.props.result
-            })
-            break;
-          case 'clear':
-            this.props.clearValue(this.state.input);
-            this.setState({
-              display: 0,
-              input: 0
-            });
-            break;
-        }
+          let validOperatorCombinations = [
+            /\+\-{2}$/,
+            /\*\-$/,
+            /\/\-$/,
+            /\-\-$/,
+          ];
 
-        if (!['clear', 'equals'].includes(btn.id)) {
-          this.setState((state) => ({
-            display:
-              state.display + state.input
-                ? state.display
-                  ? state.display + ' ' + btn.value + ' ' + state.input
-                  : state.input
-                : 0,
-              input: btn.value
-          }));
+          let newRecentOperators = recentOperators;
+
+          if (recentOperators.length) {
+            if (
+              recentOperators.length === 1 &&
+              validOperatorCombinations.some((i) =>
+                i.test(recentOperators + btn.value)
+              )
+            ) {
+              newRecentOperators = recentOperators + btn.value;
+            } else {
+              if (recentOperators.length === 2 && btn.value !== '-') {
+                newRecentOperators = btn.value;
+              }
+            }
+
+            newDisplay = state.display.replace(
+              recentOperatorsRegex,
+              newRecentOperators
+            );
+          } else {
+            newDisplay = state.display + btn.value;
+          }
+
+          if (hasEquals) {
+            newDisplay = state.input + btn.value;
+          }
+
+          return {
+            display: newDisplay,
+            input: btn.value,
+          };
+        });
+        if (['equals', 'clear'].includes(btn.id)) {
+          this.calculateResult(btn);
         }
     }
-    console.log(this.props);
+  }
+
+  handleDecimalInput(input, btn) {
+    let decimalCount = input.toString().match(/\./g);
+    let newInput = '';
+    if (!decimalCount || (decimalCount.length === 1 && btn.value !== '.')) {
+      newInput =
+        parseFloat(input) > 0
+          ? input.toString() + btn.value
+          : (parseFloat(input) + btn.value).toString();
+    }
+    return newInput;
+  }
+
+  calculateResult(btn) {
+    switch (btn.id) {
+      // case 'add':
+      //   this.props.addValue(this.state.input);
+      //   break;
+      // case 'subtract':
+      //   this.props.subtractValue(this.state.input);
+      //   break;
+      // case 'divide':
+      //   this.props.divideValue(this.state.input);
+      //   break;
+      // case 'multiply':
+      //   this.props.multiplyValue(this.state.input);
+      //   break;
+      case 'equals':
+        this.props.equalsValue(this.state.display);
+        this.setState({
+          display: this.state.display + ' = ' + eval(this.state.display),
+          input: eval(this.state.display),
+        });
+        break;
+      case 'clear':
+        this.props.clearValue(this.state.input);
+        this.setState({
+          display: '',
+          input: 0,
+        });
+        break;
+    }
   }
 
   render() {
     return (
       <div>
-        <div>{this.state.display}</div>
-        <div>{this.props.result}</div>
-        <div id='display'>{this.state.input}</div>
+        <div className='display-container'>
+          <div>{this.state.display}</div>
+          <div id='display'>{this.state.input}</div>
+        </div>
         <div className='operator-btns-container d-flex'>
           {operatorBtns.map((btn) => {
             return (
@@ -229,11 +298,11 @@ const SUBTRACT = 'Subtract'; // Define a constant for subtract action types
 const DIVIDE = 'Divide'; // Define a constant for divide action types
 const MULTIPLY = 'Multiply'; // Define a constant for multiply action types
 const CLEAR = 'Clear'; // Define a constant for multiply action types
+const EQUALS = 'Equals'; // Define a constant for equals action types
 
 let result = 0;
 
 const calculatorReducer = (state = result, action) => {
-  console.log(state);
   let stateInput = parseFloat(action.value);
   switch (action.type) {
     case ADD:
@@ -246,6 +315,8 @@ const calculatorReducer = (state = result, action) => {
       return state * stateInput;
     case CLEAR:
       return action.value;
+    case EQUALS:
+      return eval(action.value);
     default:
       return state;
   }
@@ -286,6 +357,13 @@ const clearAction = () => {
   };
 }; // Define an action creator for clearing
 
+const equalsAction = (expressions) => {
+  return {
+    type: EQUALS,
+    value: expressions,
+  };
+}; // Define an action creator for evaluating expressions
+
 const store = Redux.createStore(calculatorReducer); // Define the Redux store here, passing in your reducers
 
 const mapStateToProps = (state) => {
@@ -311,6 +389,9 @@ const mapDispatchToProps = (dispatch) => {
     clearValue: () => {
       dispatch(clearAction());
     },
+    equalsValue: (value) => {
+      dispatch(equalsAction(value));
+    },
   };
 };
 
@@ -325,7 +406,6 @@ class AppWrapper extends React.Component {
     super(props);
   }
   render() {
-    console.log(document.getElementById('calculator'));
     // Complete the return statement:
     return (
       <Provider store={store}>
